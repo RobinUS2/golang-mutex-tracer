@@ -53,6 +53,12 @@ l.Lock()
 l.Unlock()
 ```
 
+Example output
+----
+```
+2019/02/20 13:32:04 testLock violation CRITICAL section took 23.477ms 23477000 (threshold 10ms)
+```
+
 Benchmark
 ----
 Yes, there is performance impact. This is in the order of 1000 nanoseconds which is 0.001 milliseconds.
