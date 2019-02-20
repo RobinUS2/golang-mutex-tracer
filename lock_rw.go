@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 )
 
-type Mutex struct {
-	lock sync.Mutex
+type RWMutex struct {
+	lock sync.RWMutex
 
 	// internal trace fields
 	threshold        uint64 // 0 when disabled, else threshold in nanoseconds
@@ -16,7 +16,7 @@ type Mutex struct {
 	id               []byte // if set this will be printed as string
 }
 
-func (m *Mutex) Lock() {
+func (m *RWMutex) Lock() {
 	tracingThreshold := m.isTracing()
 	if tracingThreshold != 0 {
 		m.traceBeginAwaitLock()
@@ -30,7 +30,21 @@ func (m *Mutex) Lock() {
 	}
 }
 
-func (m *Mutex) Unlock() {
+func (m *RWMutex) RLock() {
+	tracingThreshold := m.isTracing()
+	if tracingThreshold != 0 {
+		m.traceBeginAwaitLock()
+	}
+
+	// read lock
+	m.lock.RLock()
+
+	if tracingThreshold != 0 {
+		m.traceEndAwaitLock(tracingThreshold)
+	}
+}
+
+func (m *RWMutex) Unlock() {
 	tracingThreshold := m.isTracing()
 	if tracingThreshold != 0 {
 		m.traceBeginAwaitUnlock()
@@ -44,7 +58,21 @@ func (m *Mutex) Unlock() {
 	}
 }
 
-func (m *Mutex) isTracing() Threshold {
+func (m *RWMutex) RUnlock() {
+	tracingThreshold := m.isTracing()
+	if tracingThreshold != 0 {
+		m.traceBeginAwaitUnlock()
+	}
+
+	// read unlock
+	m.lock.RUnlock()
+
+	if tracingThreshold != 0 {
+		m.traceEndAwaitUnlock(tracingThreshold)
+	}
+}
+
+func (m *RWMutex) isTracing() Threshold {
 	tracingThreshold := atomic.LoadUint64(&m.threshold)
 	if tracingThreshold == 0 {
 		// always on?
@@ -53,11 +81,11 @@ func (m *Mutex) isTracing() Threshold {
 	return Threshold(tracingThreshold)
 }
 
-func (m *Mutex) traceBeginAwaitLock() {
+func (m *RWMutex) traceBeginAwaitLock() {
 	atomic.StoreUint64(&m.beginAwaitLock, now())
 }
 
-func (m *Mutex) traceEndAwaitLock(threshold Threshold) {
+func (m *RWMutex) traceEndAwaitLock(threshold Threshold) {
 	ts := now() // first obtain the current time
 	start := atomic.LoadUint64(&m.beginAwaitLock)
 	atomic.StoreUint64(&m.lockObtained, uint64(ts))
@@ -71,11 +99,11 @@ func (m *Mutex) traceEndAwaitLock(threshold Threshold) {
 	}
 }
 
-func (m *Mutex) traceBeginAwaitUnlock() {
+func (m *RWMutex) traceBeginAwaitUnlock() {
 	atomic.StoreUint64(&m.beginAwaitUnlock, now())
 }
 
-func (m *Mutex) traceEndAwaitUnlock(threshold Threshold) {
+func (m *RWMutex) traceEndAwaitUnlock(threshold Threshold) {
 	ts := now() // first obtain the current time
 
 	// lock obtained time (critical section)
