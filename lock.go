@@ -18,31 +18,29 @@ type Mutex struct {
 }
 
 func (m *Mutex) Lock() {
-	tracingThreshold := atomic.LoadUint64(&m.threshold)
-	isTracing := tracingThreshold != 0
-	if isTracing {
+	tracingThreshold := m.isTracing()
+	if tracingThreshold != 0 {
 		m.traceBeginAwaitLock()
 	}
 
 	// actual lock
 	m.lock.Lock()
 
-	if isTracing {
+	if tracingThreshold != 0 {
 		m.traceEndAwaitLock(tracingThreshold)
 	}
 }
 
 func (m *Mutex) Unlock() {
-	tracingThreshold := atomic.LoadUint64(&m.threshold)
-	isTracing := atomic.LoadUint64(&m.threshold) != 0
-	if isTracing {
+	tracingThreshold := m.isTracing()
+	if tracingThreshold != 0 {
 		m.traceBeginAwaitUnlock()
 	}
 
 	// unlock
 	m.lock.Unlock()
 
-	if isTracing {
+	if tracingThreshold != 0 {
 		m.traceEndAwaitUnlock(tracingThreshold)
 	}
 }

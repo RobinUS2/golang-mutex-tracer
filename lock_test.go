@@ -45,6 +45,23 @@ func TestNewEnabledDisabledEnd(t *testing.T) {
 	l.DisableTracer()
 }
 
+func TestNewEnableGlobal(t *testing.T) {
+	l := sync.Mutex{}
+
+	// enable globally
+	sync.SetGlobalOpts(sync.Opts{
+		Threshold: 100 * time.Millisecond,
+		Enabled:   true,
+	})
+
+	l.Lock()
+	time.Sleep(150 * time.Millisecond)
+	l.Unlock()
+
+	// reset again
+	sync.ResetDefaults()
+}
+
 func TestNewEnabledHalfWay(t *testing.T) {
 	l := sync.Mutex{}
 	l.Lock()

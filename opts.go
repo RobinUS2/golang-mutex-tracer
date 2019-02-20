@@ -4,4 +4,5 @@ import "time"
 
 type Opts struct {
 	Threshold time.Duration
+	Enabled   bool
 }

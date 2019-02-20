@@ -6,11 +6,20 @@ import (
 	"time"
 )
 
+func (m *Mutex) isTracing() Threshold {
+	tracingThreshold := atomic.LoadUint64(&m.threshold)
+	if tracingThreshold == 0 {
+		// always on?
+		tracingThreshold = atomic.LoadUint64(&defaultThreshold)
+	}
+	return Threshold(tracingThreshold)
+}
+
 func (m *Mutex) traceBeginAwaitLock() {
 	atomic.StoreUint64(&m.beginAwaitLock, now())
 }
 
-func (m *Mutex) traceEndAwaitLock(threshold uint64) {
+func (m *Mutex) traceEndAwaitLock(threshold Threshold) {
 	ts := now() // first obtain the current time
 	start := atomic.LoadUint64(&m.beginAwaitLock)
 	atomic.StoreUint64(&m.lockObtained, uint64(ts))
@@ -19,8 +28,8 @@ func (m *Mutex) traceEndAwaitLock(threshold uint64) {
 		// check for no overflow
 		took = ts - start
 	}
-	if took >= threshold {
-		logViolation(m, Threshold(threshold), Actual(took), Now(ts), ViolationLock)
+	if took >= uint64(threshold) {
+		logViolation(m, threshold, Actual(took), Now(ts), ViolationLock)
 	}
 }
 
@@ -28,7 +37,7 @@ func (m *Mutex) traceBeginAwaitUnlock() {
 	atomic.StoreUint64(&m.beginAwaitUnlock, now())
 }
 
-func (m *Mutex) traceEndAwaitUnlock(threshold uint64) {
+func (m *Mutex) traceEndAwaitUnlock(threshold Threshold) {
 	ts := now() // first obtain the current time
 
 	// lock obtained time (critical section)
@@ -39,9 +48,9 @@ func (m *Mutex) traceEndAwaitUnlock(threshold uint64) {
 		took = ts - lockObtained
 	}
 
-	if took >= threshold && lockObtained > 0 {
+	if took >= uint64(threshold) && lockObtained > 0 {
 		// lockObtained = 0 when the tracer is enabled half way
-		logViolation(m, Threshold(threshold), Actual(took), Now(ts), ViolationCritical)
+		logViolation(m, threshold, Actual(took), Now(ts), ViolationCritical)
 	}
 }
 
